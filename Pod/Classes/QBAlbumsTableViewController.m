@@ -22,11 +22,11 @@ ALAssetsFilter *ALAssetsFilterFromQBImagePickerControllerFilterType(QBImagePicke
         case QBImagePickerControllerFilterTypeNone:
             return [ALAssetsFilter allAssets];
             break;
-            
+
         case QBImagePickerControllerFilterTypePhotos:
             return [ALAssetsFilter allPhotos];
             break;
-            
+
         case QBImagePickerControllerFilterTypeVideos:
             return [ALAssetsFilter allVideos];
             break;
@@ -67,16 +67,16 @@ ALAssetsFilter *ALAssetsFilterFromQBImagePickerControllerFilterType(QBImagePicke
 - (void)viewDidLoad
 {
     [super viewDidLoad];
-    
+
     // Register cell classes
     [self.tableView registerClass:[QBImagePickerGroupCell class] forCellReuseIdentifier:@"GroupCell"];
-    
+
     self.showsCancelButton = YES;
-    
+
     // View settings
     self.tableView.separatorStyle = UITableViewCellSeparatorStyleNone;
-    self.tableView.contentInset = UIEdgeInsetsMake(0.0, 0.0, 40.0, 0.0);    
-    
+    self.tableView.contentInset = UIEdgeInsetsMake(0.0, 0.0, 40.0, 0.0);
+
     // View controller settings
     self.title = NSLocalizedStringFromTable(@"title", @"QBImagePickerController", nil);
 }
@@ -85,18 +85,25 @@ ALAssetsFilter *ALAssetsFilterFromQBImagePickerControllerFilterType(QBImagePicke
 {
     // Property settings
     self.selectedAssetURLs = [NSMutableOrderedSet orderedSet];
-    
-    self.groupTypes = @[
-                        @(ALAssetsGroupSavedPhotos),
-                        @(ALAssetsGroupPhotoStream),
-                        @(ALAssetsGroupAlbum)
-                        ];
+
+    if (self.showsPhotostream) {
+        self.groupTypes = @[
+                            @(ALAssetsGroupSavedPhotos),
+                            @(ALAssetsGroupPhotoStream),
+                            @(ALAssetsGroupAlbum)
+                            ];
+    } else {
+        self.groupTypes = @[
+                            @(ALAssetsGroupSavedPhotos),
+                            @(ALAssetsGroupAlbum)
+                            ];
+    }
     self.filterType = QBImagePickerControllerFilterTypeNone;
-    
+
     // Create assets library instance
     ALAssetsLibrary *assetsLibrary = [[ALAssetsLibrary alloc] init];
     self.assetsLibrary = assetsLibrary;
-    
+
     self.rightNavigationItemTitle = @"Done";
 }
 
@@ -111,13 +118,13 @@ ALAssetsFilter *ALAssetsFilterFromQBImagePickerControllerFilterType(QBImagePicke
 - (void)viewWillAppear:(BOOL)animated
 {
     [super viewWillAppear:animated];
-    
+
     // Load assets groups
     [self loadAssetsGroupsWithTypes:self.groupTypes completion:^(NSArray *assetsGroups) {
         self.assetsGroups = assetsGroups;
         [self.tableView reloadData];
     }];
-    
+
     // Validation
     [self.navigationItem.rightBarButtonItem setEnabled:[self validateNumberOfSelectionsWithImageCount:[self numberOfSelectedImages]
                                                                                            videoCount:[self numberOfSelectedVideos]]];
@@ -129,7 +136,7 @@ ALAssetsFilter *ALAssetsFilterFromQBImagePickerControllerFilterType(QBImagePicke
 - (void)setShowsCancelButton:(BOOL)showsCancelButton
 {
     _showsCancelButton = showsCancelButton;
-    
+
     // Show/hide cancel button
     if (showsCancelButton) {
         UIBarButtonItem *cancelButton = [[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemCancel target:self action:@selector(cancel:)];
@@ -142,7 +149,7 @@ ALAssetsFilter *ALAssetsFilterFromQBImagePickerControllerFilterType(QBImagePicke
 - (void)setAllowsMultipleSelection:(BOOL)allowsMultipleSelection
 {
     _allowsMultipleSelection = allowsMultipleSelection;
-    
+
     // Show/hide done button
     if (allowsMultipleSelection) {
         UIBarButtonItem *doneButton = [[UIBarButtonItem alloc] initWithTitle:self.rightNavigationItemTitle
@@ -173,7 +180,7 @@ ALAssetsFilter *ALAssetsFilterFromQBImagePickerControllerFilterType(QBImagePicke
 #ifdef DEBUG
     NSLog(@"Opening Camera");
 #endif
-    
+
     UIImagePickerController *cameraPicker = [[UIImagePickerController alloc] init];
 //    cameraPicker.allowsEditing = YES;
 
@@ -194,21 +201,21 @@ ALAssetsFilter *ALAssetsFilterFromQBImagePickerControllerFilterType(QBImagePicke
     cameraPicker.modalPresentationStyle = UIModalPresentationFullScreen;
     cameraPicker.showsCameraControls = YES;
     cameraPicker.delegate = self;
-    
+
     [self presentViewController:cameraPicker animated:YES completion:nil];
 }
 
 - (void)imagePickerController:(UIImagePickerController *)picker didFinishPickingMediaWithInfo:(NSDictionary *)info
 {
     [self dismissViewControllerAnimated:YES completion:nil];
-    
+
     void (^saveCompletionHandler)(NSURL*, NSError*)= ^(NSURL *assetURL, NSError *error) {
         if(!error && assetURL != nil) {
             [self.selectedAssetURLs addObject:assetURL];
             [self passSelectedAssetsToDelegate];
         }
     };
-    
+
     NSString *mediaType = [info objectForKey:UIImagePickerControllerMediaType];
     if(UTTypeConformsTo((__bridge CFStringRef)mediaType, kUTTypeImage)) {
 #ifdef DEBUG
@@ -217,7 +224,7 @@ ALAssetsFilter *ALAssetsFilterFromQBImagePickerControllerFilterType(QBImagePicke
         [self.assetsLibrary writeImageToSavedPhotosAlbum:((UIImage*)[info objectForKey:UIImagePickerControllerOriginalImage]).CGImage
                                                 metadata:[info objectForKey:UIImagePickerControllerMediaMetadata]
                                          completionBlock:saveCompletionHandler];
-        
+
     } else if(UTTypeConformsTo((__bridge CFStringRef)mediaType, kUTTypeMovie)) {
 #ifdef DEBUG
         NSLog(@"Camera took video");
@@ -234,7 +241,7 @@ ALAssetsFilter *ALAssetsFilterFromQBImagePickerControllerFilterType(QBImagePicke
     BOOL qualifiesMinimumNumberOfSelection = (imageCount >= self.minimumNumberOfImageSelection) &&
                                              (videoCount >= self.minimumNumberOfVideoSelection) &&
                                               imageCount + videoCount >= 1;
-    
+
     BOOL qualifiesMaximumNumberOfSelection = YES;
     if (MAX(1, self.minimumNumberOfImageSelection) <= self.maximumNumberOfImageSelection) {
         qualifiesMaximumNumberOfSelection = (imageCount <= self.maximumNumberOfImageSelection);
@@ -242,7 +249,7 @@ ALAssetsFilter *ALAssetsFilterFromQBImagePickerControllerFilterType(QBImagePicke
     if (MAX(1, self.minimumNumberOfVideoSelection) <= self.maximumNumberOfVideoSelection) {
         qualifiesMaximumNumberOfSelection = qualifiesMaximumNumberOfSelection || (videoCount <= self.maximumNumberOfVideoSelection);
     }
-    
+
     return (qualifiesMinimumNumberOfSelection && qualifiesMaximumNumberOfSelection);
 }
 
@@ -278,16 +285,16 @@ ALAssetsFilter *ALAssetsFilterFromQBImagePickerControllerFilterType(QBImagePicke
 {
     __block NSMutableArray *assetsGroups = [NSMutableArray array];
     __block NSUInteger numberOfFinishedTypes = 0;
-    
+
     for (NSNumber *type in types) {
         __weak typeof(self) weakSelf = self;
-        
+
         [self.assetsLibrary enumerateGroupsWithTypes:[type unsignedIntegerValue]
                                           usingBlock:^(ALAssetsGroup *assetsGroup, BOOL *stop) {
                                               if (assetsGroup) {
                                                   // Filter the assets group
                                                   [assetsGroup setAssetsFilter:ALAssetsFilterFromQBImagePickerControllerFilterType(weakSelf.filterType)];
-                                                  
+
                                                   if (assetsGroup.numberOfAssets > 0) {
                                                       // Add assets group
                                                       [assetsGroups addObject:assetsGroup];
@@ -295,12 +302,12 @@ ALAssetsFilter *ALAssetsFilterFromQBImagePickerControllerFilterType(QBImagePicke
                                               } else {
                                                   numberOfFinishedTypes++;
                                               }
-                                              
+
                                               // Check if the loading finished
                                               if (numberOfFinishedTypes == types.count) {
                                                   // Sort assets groups
                                                   NSArray *sortedAssetsGroups = [self sortAssetsGroups:(NSArray *)assetsGroups typesOrder:types];
-                                                  
+
                                                   // Call completion block
                                                   if (completion) {
                                                       completion(sortedAssetsGroups);
@@ -317,33 +324,33 @@ ALAssetsFilter *ALAssetsFilterFromQBImagePickerControllerFilterType(QBImagePicke
 - (NSArray *)sortAssetsGroups:(NSArray *)assetsGroups typesOrder:(NSArray *)typesOrder
 {
     NSMutableArray *sortedAssetsGroups = [NSMutableArray array];
-    
+
     for (ALAssetsGroup *assetsGroup in assetsGroups) {
         if (sortedAssetsGroups.count == 0) {
             [sortedAssetsGroups addObject:assetsGroup];
             continue;
         }
-        
+
         ALAssetsGroupType assetsGroupType = [[assetsGroup valueForProperty:ALAssetsGroupPropertyType] unsignedIntegerValue];
         NSUInteger indexOfAssetsGroupType = [typesOrder indexOfObject:@(assetsGroupType)];
-        
+
         for (NSInteger i = 0; i <= sortedAssetsGroups.count; i++) {
             if (i == sortedAssetsGroups.count) {
                 [sortedAssetsGroups addObject:assetsGroup];
                 break;
             }
-            
+
             ALAssetsGroup *sortedAssetsGroup = sortedAssetsGroups[i];
             ALAssetsGroupType sortedAssetsGroupType = [[sortedAssetsGroup valueForProperty:ALAssetsGroupPropertyType] unsignedIntegerValue];
             NSUInteger indexOfSortedAssetsGroupType = [typesOrder indexOfObject:@(sortedAssetsGroupType)];
-            
+
             if (indexOfAssetsGroupType < indexOfSortedAssetsGroupType) {
                 [sortedAssetsGroups insertObject:assetsGroup atIndex:i];
                 break;
             }
         }
     }
-    
+
     return [sortedAssetsGroups copy];
 }
 
@@ -351,14 +358,14 @@ ALAssetsFilter *ALAssetsFilterFromQBImagePickerControllerFilterType(QBImagePicke
 {
     // Load assets from URLs
     __block NSMutableArray *assets = [NSMutableArray array];
-    
+
     for (NSURL *selectedAssetURL in self.selectedAssetURLs) {
         __weak typeof(self) weakSelf = self;
         [self.assetsLibrary assetForURL:selectedAssetURL
                             resultBlock:^(ALAsset *asset) {
                                 // Add asset
                                 [assets addObject:asset];
-                                
+
                                 // Check if the loading finished
                                 if (assets.count == weakSelf.selectedAssetURLs.count) {
                                     // Delegate
@@ -390,10 +397,10 @@ ALAssetsFilter *ALAssetsFilterFromQBImagePickerControllerFilterType(QBImagePicke
 - (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath
 {
     QBImagePickerGroupCell *cell = [tableView dequeueReusableCellWithIdentifier:@"GroupCell" forIndexPath:indexPath];
-    
+
     ALAssetsGroup *assetsGroup = self.assetsGroups[indexPath.row];
     cell.assetsGroup = assetsGroup;
-    
+
     return cell;
 }
 
@@ -415,15 +422,15 @@ ALAssetsFilter *ALAssetsFilterFromQBImagePickerControllerFilterType(QBImagePicke
     assetsCollectionViewController.minimumNumberOfVideoSelection = self.minimumNumberOfVideoSelection;
     assetsCollectionViewController.maximumNumberOfImageSelection = self.maximumNumberOfImageSelection;
     assetsCollectionViewController.maximumNumberOfVideoSelection = self.maximumNumberOfVideoSelection;
-    
+
     ALAssetsGroup *assetsGroup = self.assetsGroups[indexPath.row];
     assetsCollectionViewController.delegate = self;
     assetsCollectionViewController.assetsGroup = assetsGroup;
-    
+
     for (NSURL *assetURL in self.selectedAssetURLs) {
         [assetsCollectionViewController selectAssetHavingURL:assetURL];
     }
-    
+
     [self.navigationController pushViewController:assetsCollectionViewController animated:YES];
 }
 
@@ -436,7 +443,7 @@ ALAssetsFilter *ALAssetsFilterFromQBImagePickerControllerFilterType(QBImagePicke
         // Add asset URL
         NSURL *assetURL = [asset valueForProperty:ALAssetPropertyAssetURL];
         [self.selectedAssetURLs addObject:assetURL];
-        
+
         // Validation
         [self.navigationItem.rightBarButtonItem setEnabled:[self validateNumberOfSelectionsWithImageCount:[self numberOfSelectedImages]
                                                                                                videoCount:[self numberOfSelectedVideos]]];
@@ -454,7 +461,7 @@ ALAssetsFilter *ALAssetsFilterFromQBImagePickerControllerFilterType(QBImagePicke
         // Remove asset URL
         NSURL *assetURL = [asset valueForProperty:ALAssetPropertyAssetURL];
         [self.selectedAssetURLs removeObject:assetURL];
-        
+
         // Validation
         [self.navigationItem.rightBarButtonItem setEnabled:[self validateNumberOfSelectionsWithImageCount:[self numberOfSelectedImages]
                                                                                                videoCount:[self numberOfSelectedVideos]]];
